@@ -8,18 +8,27 @@ from flask import session
 from mysql.connector import pooling
 from password import *
 
-poolname ="mysqlpool"
-poolsize = 3
-connectionpool = mysql.connector.pooling.MySQLConnectionPool(
-    pool_name =poolname,pool_size=poolsize, pool_reset_session=True, host='localhost',user='root',password=mySqlPassword())
-conn = connectionpool.get_connection()
 
+
+def conn():
+    poolname ="mysqlpool"
+    poolsize = 5
+    connectionpool = mysql.connector.pooling.MySQLConnectionPool(
+        pool_name =poolname,pool_size=poolsize, pool_reset_session=True, host='localhost',user='root',password=mySqlPassword())
+    try:
+        conn = connectionpool.get_connection()
+        return conn
+    except:
+        print ("connection error")
+        exit(1)
+
+#全域變數 conn
+conn = conn()
 
 #選擇資料庫
-with conn.cursor() as cursor:
+def test():
     cursor = conn.cursor()
     cursor.execute("USE website;")
-
 
 #密碼加密初始化
 bcrypt = Bcrypt()
@@ -32,14 +41,17 @@ app.secret_key= secret_key()
 #首頁
 @app.route("/")
 def index():       
-    
 	return render_template("register.html")
 
 
 #處理註冊
+
 @app.route("/signup",methods=["POST"])
-def signup():    
-    with conn.cursor() as cursor:
+
+def signup():  
+    test()  
+    cursor = conn.cursor()
+    with cursor:
         nickname = request.form["nickname"]
         username = request.form["username"]
         password = request.form["password"]
@@ -58,12 +70,13 @@ def signup():
             cursor.execute(sql, userInfo)
             conn.commit()
             return redirect("/")  
-    
+
 
 #處理登入
 @app.route("/login",methods=["POST"])
 def login():
-    
+    test()  
+    cursor = conn.cursor()
     username = request.form["username"]
     password = request.form["password"]
     if (not username or not password):
@@ -97,6 +110,8 @@ def error():
 #會員頁
 @app.route("/member")
 def member():
+    test()  
+    cursor = conn.cursor()
     username = session.get('username')
     password = session.get('password')
     if (username!= None and password != None):
@@ -125,6 +140,8 @@ def signout():
 #處理訊息
 @app.route("/message",methods=["POST"])
 def message():
+    test()  
+    cursor = conn.cursor()
     with conn.cursor() as cursor:
         #從 session 取 user_id
         user_id = session.get('user_id')
