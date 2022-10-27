@@ -8,27 +8,28 @@ from flask import session
 from mysql.connector import pooling
 from password import *
 
+#connection pool 連線資料
+poolname ="mysqlpool"
+poolsize = 5
+connectionpool = mysql.connector.pooling.MySQLConnectionPool(
+    pool_name =poolname,pool_size=poolsize, pool_reset_session=True, host='localhost',user='root',password=mySqlPassword())
 
-
+#將 .get_connection() 存入 conn
 def conn():
-    poolname ="mysqlpool"
-    poolsize = 5
-    connectionpool = mysql.connector.pooling.MySQLConnectionPool(
-        pool_name =poolname,pool_size=poolsize, pool_reset_session=True, host='localhost',user='root',password=mySqlPassword())
     try:
-        conn = connectionpool.get_connection()
-        return conn
+        c = connectionpool.get_connection()
+        return c
     except:
         print ("connection error")
         exit(1)
 
-#全域變數 conn
-conn = conn()
 
 #選擇資料庫
-def test():
-    cursor = conn.cursor()
-    cursor.execute("USE website;")
+# def test():
+#         c = conn()
+#         cursor = c.cursor()
+#         cursor.execute("USE website;")
+  
 
 #密碼加密初始化
 bcrypt = Bcrypt()
@@ -49,9 +50,10 @@ def index():
 @app.route("/signup",methods=["POST"])
 
 def signup():  
-    test()  
-    cursor = conn.cursor()
-    with cursor:
+    c = conn()  #呼叫連線程式
+    cursor = c.cursor()   #定義 cursor
+    with cursor:  #cursor 以下範圍內使用 cursor
+        cursor.execute("USE website;")   #選擇資料庫 
         nickname = request.form["nickname"]
         username = request.form["username"]
         password = request.form["password"]
@@ -69,24 +71,28 @@ def signup():
             userInfo = (nickname, username, hashed_password)
             cursor.execute(sql, userInfo)
             conn.commit()
-            return redirect("/")  
+            return redirect("/") 
+    c.close()   #連線關閉
 
 
 #處理登入
 @app.route("/login",methods=["POST"])
 def login():
-    test()  
-    cursor = conn.cursor()
     username = request.form["username"]
     password = request.form["password"]
     if (not username or not password):
         return redirect("/error?message=欄位不得爲空")
-    with conn.cursor() as cursor:
+
+    c = conn()
+    cursor = c.cursor()    
+    with cursor:
+        cursor.execute("USE website;") 
         sql = "SELECT * FROM member where username = %s"
         user = (username,)
         cursor.execute(sql, user)
         result = cursor.fetchall()
-        
+        c.close()  
+
         if (result != []):
             user_id = result[0][0]
             hashed_password = result[0][3]
@@ -96,7 +102,7 @@ def login():
                 session['password'] = password
                 session['user_id'] = user_id                
                 return redirect("/member")
-                
+               
     return redirect("/error?message=帳號或密碼錯誤")
     
 
@@ -110,12 +116,14 @@ def error():
 #會員頁
 @app.route("/member")
 def member():
-    test()  
-    cursor = conn.cursor()
     username = session.get('username')
     password = session.get('password')
+
     if (username!= None and password != None):
-        with conn.cursor() as cursor:
+        c = conn()
+        cursor = c.cursor()
+        with cursor:
+            cursor.execute("USE website;") 
             sql = "SELECT password FROM member where username = %s"
             user = (username,)
             cursor.execute(sql, user)
@@ -127,8 +135,9 @@ def member():
                 sql = "select member.name, member.username, message.content, message.time from member inner join message on member.id = message.member_id order by message.time desc"
                 cursor.execute(sql)
                 result = cursor.fetchall()
+                c.close() 
                 return render_template("index.html", username=username, result=result)  
-
+        c.close() 
     return redirect("/")
 
 #處理登出
@@ -140,9 +149,10 @@ def signout():
 #處理訊息
 @app.route("/message",methods=["POST"])
 def message():
-    test()  
-    cursor = conn.cursor()
-    with conn.cursor() as cursor:
+    c = conn()
+    cursor = c.cursor()
+    with cursor:
+        cursor.execute("USE website;") 
         #從 session 取 user_id
         user_id = session.get('user_id')
 
@@ -151,7 +161,8 @@ def message():
         sql = "Insert into message (member_id, content) values (%s, %s)"
         user_content = (user_id, content)    
         cursor.execute(sql, user_content) 
-        conn.commit()
+        c.commit()
+        c.close() 
     return redirect("/member")
 
 
