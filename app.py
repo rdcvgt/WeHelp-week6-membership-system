@@ -23,12 +23,11 @@ def conn():
         print ("connection error")
         exit(1)
 
-
 #選擇資料庫
-# def test():
-#         c = conn()
-#         cursor = c.cursor()
-#         cursor.execute("USE website;")
+def selectDb(c):
+    cursor = c.cursor()
+    cursor.execute("USE website;") 
+    return cursor
   
 
 #密碼加密初始化
@@ -48,12 +47,12 @@ def index():
 #處理註冊
 
 @app.route("/signup",methods=["POST"])
-
 def signup():  
     c = conn()  #呼叫連線程式
-    cursor = c.cursor()   #定義 cursor
+    cursor = selectDb(c)
+    # cursor = c.cursor()   #定義 cursor
     with cursor:  #cursor 以下範圍內使用 cursor
-        cursor.execute("USE website;")   #選擇資料庫 
+        # cursor.execute("USE website;")   #選擇資料庫 
         nickname = request.form["nickname"]
         username = request.form["username"]
         password = request.form["password"]
@@ -84,9 +83,9 @@ def login():
         return redirect("/error?message=欄位不得爲空")
 
     c = conn()
-    cursor = c.cursor()    
+    cursor = selectDb(c)
     with cursor:
-        cursor.execute("USE website;") 
+        # cursor.execute("USE website;") 
         sql = "SELECT * FROM member where username = %s"
         user = (username,)
         cursor.execute(sql, user)
@@ -121,9 +120,8 @@ def member():
 
     if (username!= None and password != None):
         c = conn()
-        cursor = c.cursor()
+        cursor = selectDb(c)
         with cursor:
-            cursor.execute("USE website;") 
             sql = "SELECT password FROM member where username = %s"
             user = (username,)
             cursor.execute(sql, user)
@@ -150,7 +148,7 @@ def signout():
 @app.route("/message",methods=["POST"])
 def message():
     c = conn()
-    cursor = c.cursor()
+    cursor = selectDb(c)
     with cursor:
         cursor.execute("USE website;") 
         #從 session 取 user_id
@@ -161,9 +159,9 @@ def message():
         sql = "Insert into message (member_id, content) values (%s, %s)"
         user_content = (user_id, content)    
         cursor.execute(sql, user_content) 
-        c.commit()
+        c.commit() 
         c.close() 
-    return redirect("/member")
+        return redirect("/member")
 
 
 if __name__=="__main__": #如果以主程式進行
