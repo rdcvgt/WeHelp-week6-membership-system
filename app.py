@@ -45,14 +45,11 @@ def index():
 
 
 #處理註冊
-
 @app.route("/signup",methods=["POST"])
 def signup():  
     c = conn()  #呼叫連線程式
     cursor = selectDb(c)
-    # cursor = c.cursor()   #定義 cursor
     with cursor:  #cursor 以下範圍內使用 cursor
-        # cursor.execute("USE website;")   #選擇資料庫 
         nickname = request.form["nickname"]
         username = request.form["username"]
         password = request.form["password"]
@@ -61,17 +58,19 @@ def signup():
         cursor.execute(sql, user)
         result = cursor.fetchall()
         if (not nickname or not username or not password):
+            c.close()
             return redirect("/error?message=欄位不得爲空")
         if (result):   
+            c.close()
             return redirect("/error?message=帳號已被註冊")
         else:
             hashed_password = bcrypt.generate_password_hash(password=password)
             sql = "Insert into member (name, username, password ) values (%s, %s, %s)"
             userInfo = (nickname, username, hashed_password)
             cursor.execute(sql, userInfo)
-            conn.commit()
+            c.commit()
+            c.close()
             return redirect("/") 
-    c.close()   #連線關閉
 
 
 #處理登入
@@ -85,7 +84,6 @@ def login():
     c = conn()
     cursor = selectDb(c)
     with cursor:
-        # cursor.execute("USE website;") 
         sql = "SELECT * FROM member where username = %s"
         user = (username,)
         cursor.execute(sql, user)
